@@ -1,23 +1,33 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const parseDocx = require('./parse-docx-table');
+const parseDocx = require('./parse-docx-table'); // assumes this module exports a function
 
 const app = express();
 
-// Handle raw binary file uploads from ServiceNow
-app.post('/api/parse-docx', express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req, res) => {
+// Accept JSON with base64-encoded file
+app.use(express.json({ limit: '15mb' }));
+
+app.post('/api/parse-docx', async (req, res) => {
     try {
-        console.log('[API] Received request body, length:', req.body.length);
+        const base64 = req.body?.file;
+        if (!base64) {
+            console.error('[API] No base64 file provided in request');
+            return res.status(400).json({ error: 'Missing base64 file content' });
+        }
 
+        // Decode and save to disk
+        const buffer = Buffer.from(base64, 'base64');
         const tempPath = path.join(__dirname, 'temp.docx');
-        fs.writeFileSync(tempPath, req.body);
-        console.log('[API] File saved to:', tempPath);
+        fs.writeFileSync(tempPath, buffer);
+        console.log('[API] File written from base64 to:', tempPath);
 
+        // Parse DOCX
         const result = await parseDocx(tempPath);
         console.log('[API] Parsed result:', result);
 
-        fs.unlinkSync(tempPath); // cleanup
+        // Clean up
+        fs.unlinkSync(tempPath);
         return res.json(result);
     } catch (err) {
         console.error('[API] Error:', err);
@@ -26,4 +36,6 @@ app.post('/api/parse-docx', express.raw({ type: 'application/octet-stream', limi
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[API] Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`[API] Server running on port ${PORT}`);
+});
