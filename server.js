@@ -3,20 +3,30 @@ const multer  = require('multer');
 const fs      = require('fs');
 const path    = require('path');
 const axios   = require('axios');
-const parseDocx = require('./parse-docx-table'); // your existing function
+const parseDocx = require('./parse-docx-table');
 const cors = require('cors');
 
 const app = express();
-app.use(cors()); // Allow all origins — good for dev/testing
+
+// 🔐 Apply CORS BEFORE routes
+app.use(cors({
+  origin: '*', // Replace with specific origin in prod
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Accept'],
+}));
+
+// (Optional) Catch preflight manually — some hosts (like Render) need it
+app.options('*', cors());
+
 const upload = multer({ dest: 'uploads/' });
 
-app.use(express.static('public')); // Serves index.html
+app.use(express.static('public'));
 
 app.post('/upload', upload.single('docx'), async (req, res) => {
   try {
     const filePath = req.file.path;
-    const parsedFields = await parseDocx(filePath); // returns your fields array
-    fs.unlinkSync(filePath); // cleanup
+    const parsedFields = await parseDocx(filePath);
+    fs.unlinkSync(filePath);
 
     const jsonToSend = {
       producer_name: 'Form via Web Upload',
