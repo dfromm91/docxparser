@@ -5,10 +5,9 @@ const path    = require('path');
 const axios   = require('axios');
 const parseDocx = require('./parse-docx-table'); // your existing function
 const cors = require('cors');
-app.use(cors()); // Allow all origins — good for dev/testing
-
 
 const app = express();
+app.use(cors()); // Allow all origins — good for dev/testing
 const upload = multer({ dest: 'uploads/' });
 
 app.use(express.static('public')); // Serves index.html
