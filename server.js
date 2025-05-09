@@ -21,6 +21,7 @@ app.options('*', cors());
 const upload = multer({ dest: 'uploads/' });
 
 app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
 
 app.post('/upload', upload.single('docx'), async (req, res) => {
   try {
@@ -28,10 +29,11 @@ app.post('/upload', upload.single('docx'), async (req, res) => {
     const parsedFields = await parseDocx(filePath);
     fs.unlinkSync(filePath);
 
-    const jsonToSend = {
-      producer_name: 'Form via Web Upload',
-      fields: parsedFields
-    };
+const jsonToSend = {
+  producer_name: req.body.producer_name || 'Generated via Upload',
+  fields: parsedFields
+};
+
 
     const snRes = await axios.post(
       'https://dev189486.service-now.com/api/1617036/docxproducerapi/produce',
