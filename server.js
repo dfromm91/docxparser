@@ -5,26 +5,25 @@ const parseDocx = require('./parse-docx-table');
 
 const app = express();
 
-// Accept raw binary stream from ServiceNow
+// Handle raw binary file uploads from ServiceNow
 app.post('/api/parse-docx', express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req, res) => {
     try {
+        console.log('[API] Received request body, length:', req.body.length);
+
         const tempPath = path.join(__dirname, 'temp.docx');
-
-        // Save incoming binary to file
         fs.writeFileSync(tempPath, req.body);
+        console.log('[API] File saved to:', tempPath);
 
-        // Parse it
         const result = await parseDocx(tempPath);
+        console.log('[API] Parsed result:', result);
 
-        // Clean up
-        fs.unlinkSync(tempPath);
-
-        res.json(result);
+        fs.unlinkSync(tempPath); // cleanup
+        return res.json(result);
     } catch (err) {
-        console.error('Parsing failed:', err);
-        res.status(500).json({ error: err.message });
+        console.error('[API] Error:', err);
+        return res.status(500).json({ error: err.message });
     }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API running on port ${PORT}`));
+app.listen(PORT, () => console.log(`[API] Server running on port ${PORT}`));
