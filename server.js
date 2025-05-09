@@ -1,41 +1,23 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const parseDocx = require('./parse-docx-table'); // assumes this module exports a function
+const fs      = require('fs');
+const path    = require('path');
+const parseDocx = require('./parse-docx-table');
 
 const app = express();
 
-// Accept JSON with base64-encoded file
-app.use(express.json({ limit: '15mb' }));
-
-app.post('/api/parse-docx', async (req, res) => {
-    try {
-        const base64 = req.body?.file;
-        if (!base64) {
-            console.error('[API] No base64 file provided in request');
-            return res.status(400).json({ error: 'Missing base64 file content' });
-        }
-
-        // Decode and save to disk
-        const buffer = Buffer.from(base64, 'base64');
-        const tempPath = path.join(__dirname, 'temp.docx');
-        fs.writeFileSync(tempPath, buffer);
-        console.log('[API] File written from base64 to:', tempPath);
-
-        // Parse DOCX
-        const result = await parseDocx(tempPath);
-        console.log('[API] Parsed result:', result);
-
-        // Clean up
-        fs.unlinkSync(tempPath);
-        return res.json(result);
-    } catch (err) {
-        console.error('[API] Error:', err);
-        return res.status(500).json({ error: err.message });
-    }
+// This stays the same—accept raw binary bodies
+app.post('/api/parse-docx', express.raw({ type: 'application/octet-stream', limit: '15mb' }), async (req, res) => {
+  try {
+    console.log('[API] Received bytes:', req.body.length);
+    const tmp = path.join(__dirname, 'temp.docx');
+    fs.writeFileSync(tmp, req.body);
+    const result = await parseDocx(tmp);
+    fs.unlinkSync(tmp);
+    res.json(result);
+  } catch (e) {
+    console.error('[API] Error:', e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`[API] Server running on port ${PORT}`);
-});
+app.listen(process.env.PORT||3000, () => console.log('API listening'));
