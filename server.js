@@ -4,6 +4,9 @@ const fs      = require('fs');
 const path    = require('path');
 const axios   = require('axios');
 const parseDocx = require('./parse-docx-table'); // your existing function
+const cors = require('cors');
+app.use(cors()); // Allow all origins — good for dev/testing
+
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
