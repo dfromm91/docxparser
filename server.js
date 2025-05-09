@@ -1,23 +1,43 @@
 const express = require('express');
+const multer  = require('multer');
 const fs      = require('fs');
 const path    = require('path');
-const parseDocx = require('./parse-docx-table');
+const axios   = require('axios');
+const parseDocx = require('./parse-docx-table'); // your existing function
 
 const app = express();
+const upload = multer({ dest: 'uploads/' });
 
-// This stays the same—accept raw binary bodies
-app.post('/api/parse-docx', express.raw({ type: 'application/octet-stream', limit: '15mb' }), async (req, res) => {
+app.use(express.static('public')); // Serves index.html
+
+app.post('/upload', upload.single('docx'), async (req, res) => {
   try {
-    console.log('[API] Received bytes:', req.body.length);
-    const tmp = path.join(__dirname, 'temp.docx');
-    fs.writeFileSync(tmp, req.body);
-    const result = await parseDocx(tmp);
-    fs.unlinkSync(tmp);
-    res.json(result);
-  } catch (e) {
-    console.error('[API] Error:', e);
-    res.status(500).json({ error: e.message });
+    const filePath = req.file.path;
+    const parsedFields = await parseDocx(filePath); // returns your fields array
+    fs.unlinkSync(filePath); // cleanup
+
+    const jsonToSend = {
+      producer_name: 'Form via Web Upload',
+      fields: parsedFields
+    };
+
+    const snRes = await axios.post(
+      'https://dev189486.service-now.com/api/1617036/docxproducerapi/produce',
+      jsonToSend,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    res.json(snRes.data);
+  } catch (err) {
+    console.error('[SERVER] Error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.listen(process.env.PORT||3000, () => console.log('API listening'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`[SERVER] Listening on http://localhost:${PORT}`));
